@@ -1,0 +1,10 @@
+# C++ build artifacts
+cpp/build/
+
+# Rust build artifacts
+rust/target/
+
+# Editor configs
+*.swp
+.idea/
+.vscode/
