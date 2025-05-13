@@ -1,64 +1,99 @@
-# C++ → Rust FFI Minimal Example
+# C++ → Rust FFI Minimal Example (using `.so` dynamic library)
 
-End-to-end example of calling a C++ function from Rust using a `cc` build script.
+End-to-end example of calling a C++ function from Rust using a shared `.so` library.
 
 ---
 
-## Repository Structure
+## 🗂️ Repository Structure
 
 ```
+
 ├── cpp
 │ ├── include
-│ │ └── native_lib.h # C++ header for JNI-style function
+│ │ └── native_lib.h # C++ header exposing extern "C" function
 │ └── src
 │ └── native_lib.cpp # C++ implementation (add(a, b))
 ├── rust
-│ ├── build.rs # Rust build script (invokes cc::Build)
+│ ├── build.rs # Rust build script linking against libnative_lib.so
 │ ├── Cargo.toml # Rust project manifest
 │ └── src
-│ └── main.rs # Rust code calling the C++ add function
-└── .gitignore # Ignored build artifacts
+│ └── main.rs # Rust code calling the C++ function
+└── readme.md # This file
 ```
 
 ---
 
-## Prerequisites
+## ✅ Prerequisites
 
 - **Rust** toolchain (1.56+)
-- **C++** compiler (GCC/Clang with C++17 support)
-- **CMake** (for the C++ side, optional if you use your own build)
+- **G++** or compatible C++ compiler (with C++17 or newer)
+- Linux or Unix-based system with `LD_LIBRARY_PATH` support
 
 ---
 
-## How It Works
+## ⚙️ How It Works
 
-1. **C++ Side**
+### 1. C++ Side
 
-   - `native_lib.cpp` defines:
-     ```cpp
-     int add(int a, int b) { return a + b; }
-     ```
-   - Exposed via `extern "C"` in `native_lib.h`.
+- **`native_lib.cpp`** defines a basic function:
 
-2. **Rust Side**
-   - `build.rs` uses the [`cc`](https://crates.io/crates/cc) crate to compile the C++ code into a static library.
-   - `main.rs` declares the foreign function:
-     ```rust
-     unsafe extern "C" { fn add(a: i32, b: i32) -> i32; }
-     ```
-   - Calls it inside an `unsafe {}` block and prints the result.
+  ```cpp
+  int add(int a, int b) {
+      return a + b;
+  }
+  ```
 
----
+- `native_lib.h` exposes it as:
 
-## Building & Running
+```cpp
+extern "C" {
+    int add(int a, int b);
+}
+```
+
+### 2. Build the Shared Library
+
+From the root of the project, run:
 
 ```bash
-# 1. Build the C++ library via Rust's build script:
+g++ -fPIC -shared -Icpp/include -o rust/libnative_lib.so cpp/src/native_lib.cpp
+```
+
+This generates `libnative_lib.so` inside the `rust/` folder.
+
+### 3. Rust Side
+
+- `main.rs` declares the C function:
+
+```rust
+extern "C" {
+    fn add(a: i32, b: i32) -> i32;
+}
+```
+
+- `build.rs` tells Cargo to link against the `.so` file:
+
+```
+fn main() {
+    println!("cargo:rustc-link-search=.");
+    println!("cargo:rustc-link-lib=dylib=native_lib");
+}
+```
+
+Note: `cargo:rustc-link-search=.` means the .so must be in the rust/ directory.
+
+## 🚀 Build & Run
+
+```bash
+# Step into the Rust directory
 cd rust
-cargo clean
-cargo run
+
+# Run with the LD_LIBRARY_PATH pointing to current directory:
+LD_LIBRARY_PATH=. cargo run
+```
+
 You should see:
 
-`5 + 7 = 12`
-
+```bash
+2 + 3 = 5
 ```
